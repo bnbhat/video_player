@@ -2,7 +2,7 @@
 
 A simple video player application built with PyQt6.
 
-![screenshot](path/to/screenshot.png)
+![screenshot](assets/control_info.png)
 
 ## Features
 
@@ -24,7 +24,7 @@ Before you begin, ensure you have met the following requirements:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/pyqt6_video_player.git
+   git clone https://github.com/bnbhat/video_player.git
     ```
 2. Install the dependencies:
     ```bash
@@ -35,12 +35,27 @@ Before you begin, ensure you have met the following requirements:
     python main.py
     ```
 
+## Keybindings
+* `Space` - Play/Pause
+* `F` - Fullscreen/Exit Fullscreen
+* `M` - Mute/Unmute
+* `Esc` - Exit Fullscreen
+
 ## Usage
+<video width="640" height="480" controls loop>
+  <source src="assets/simple-video-player-usage.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+youtube link: <https://youtu.be/chTH-_5wtcg>
+
 
 1. Click the `Open` button to select a video file.
 2. Click the `Play` button to start playback.
 3. Use the slider to navigate through the video.
 4. Click the `Mute` button to mute the audio.
 5. Use the volume slider to adjust the volume.
+
+#### Developed by Balachandra Bhat <bnbhat311@gmail.com>
 
 
