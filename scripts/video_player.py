@@ -1,32 +1,31 @@
-from PyQt6.QtWidgets import QLabel, QStyle, QHBoxLayout
-from PyQt6.QtCore import QTimer
-from PyQt6.QtMultimedia import QMediaPlayer,  QAudioOutput
-from PyQt6.QtWidgets import QMainWindow, QFileDialog, QSlider, QVBoxLayout, QPushButton, QWidget, QMessageBox
+"""Video Player Class"""
+from PyQt6.QtWidgets import (
+    QLabel, QMainWindow, QFileDialog, QVBoxLayout, QPushButton,
+    QWidget, QMessageBox, QHBoxLayout, QStyle
+)
+from PyQt6.QtCore import Qt, QUrl, QTimer
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
-from PyQt6.QtCore import Qt, QUrl
-from PyQt6.QtGui import QMouseEvent
-
+from PyQt6.QtGui import QMouseEvent, QColor
 from clickable_slider import ClickableSlider
+from utils import change_icon_color
+
 
 class VideoPlayer(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.setupUI()
+        self.setupMediaPlayer()
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.updateTime)
+        self.timer.start(1000)
+
+    def setupUI(self):
         self.setWindowTitle("Video Player")
         self.setWindowIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.resize(800, 600)
 
-        self.mediaPlayer = QMediaPlayer(self)
         self.videoWidget = QVideoWidget(self)
-        self.audioOutput = QAudioOutput(self)
-        self.mediaPlayer.setAudioOutput(self.audioOutput)
-
-        self.initButtons()
-        self.initSliders()
-        self.initLayout()
-        self.applyStyles()
-
-
-    def initButtons(self): 
         self.playButton = QPushButton(self)
         self.playButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.playButton.clicked.connect(self.play_pause)
@@ -38,10 +37,7 @@ class VideoPlayer(QMainWindow):
         self.openFileButton = QPushButton(self)
         self.openFileButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
         self.openFileButton.clicked.connect(self.openFile)
-        self.openFileButton.setToolTip("Open Video File")
 
-
-    def initSliders(self):
         self.slider = ClickableSlider(Qt.Orientation.Horizontal, self)
         self.slider.sliderMoved.connect(self.setPosition)
 
@@ -55,9 +51,9 @@ class VideoPlayer(QMainWindow):
 
         self.fullScreenButton = QPushButton(self)
         self.fullScreenButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
+        self.fullScreenButton.setStyleSheet("background-color: #626567")
         self.fullScreenButton.clicked.connect(self.toggleFullScreen)
 
-    def initLayout(self):
         layout = QVBoxLayout()
         controlsLayout = QHBoxLayout()
         controlsLayout.addWidget(self.openFileButton)
@@ -75,19 +71,38 @@ class VideoPlayer(QMainWindow):
         container.setLayout(layout)
         self.setCentralWidget(container)
 
+    def setupMediaPlayer(self):
+        self.firstTimeLoad = True
+
+        self.mediaPlayer = QMediaPlayer(self)
+        self.audioOutput = QAudioOutput(self)
+        self.mediaPlayer.setAudioOutput(self.audioOutput)
         self.mediaPlayer.setVideoOutput(self.videoWidget)
         self.mediaPlayer.positionChanged.connect(self.positionChanged)
         self.mediaPlayer.durationChanged.connect(self.durationChanged)
         self.mediaPlayer.errorOccurred.connect(self.handleError)
-
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.updateTime)
-        self.timer.start(1000)
+        self.mediaPlayer.mediaStatusChanged.connect(self.handleMediaStatusChanged)
 
     def loadVideo(self, path):
         self.mediaPlayer.setSource(QUrl.fromLocalFile(path))
 
+    def stop(self):
+        self.mediaPlayer.stop()
+        self.playButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+
     def play_pause(self):
+        if not self.mediaPlayer.source().isValid():  # Check if a valid video source is set
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("No Video")
+            msg_box.setText("No video has been selected. Please select a video first.")
+            msg_box.setIcon(QMessageBox.Icon.Warning)
+            upload_button = msg_box.addButton("Upload", QMessageBox.ButtonRole.YesRole)
+            cancel_button = msg_box.addButton("Cancel", QMessageBox.ButtonRole.NoRole)
+            msg_box.exec()
+            if msg_box.clickedButton() == upload_button:
+                self.openFile()
+            return
+
         if self.mediaPlayer.isPlaying():
             self.mediaPlayer.pause()
             self.playButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
@@ -123,6 +138,8 @@ class VideoPlayer(QMainWindow):
             self.fullScreenButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarNormalButton))
 
     def openFile(self):
+        self.stop()
+        self.firstTimeLoad = True
         filePath, _ = QFileDialog.getOpenFileName(self, "Open Video File", "", "Videos (*.mp4)")
         if filePath:
             self.loadVideo(filePath)
@@ -133,7 +150,6 @@ class VideoPlayer(QMainWindow):
                 self.play_pause()
 
     def changeVolume(self, value):
-        """Set the volume to the specified value."""
         self.audioOutput.setVolume(value / 100.0)
         if value == 0 or self.audioOutput.isMuted():
             self.muteButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolumeMuted))
@@ -141,22 +157,33 @@ class VideoPlayer(QMainWindow):
             self.muteButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolume))
 
     def toggleMute(self):
-        """Toggle the mute status."""
-        muted = self.audioOutput.isMuted()
-        self.audioOutput.setMuted(not muted)
-        if not muted:
+        self.audioOutput.setMuted(not self.audioOutput.isMuted())
+        if self.audioOutput.isMuted():
             self.muteButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolumeMuted))
         else:
             self.muteButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaVolume))
 
     def keyPressEvent(self, event):
-        """Override the keyPressEvent to handle the 'Esc' key."""
         if event.key() == Qt.Key.Key_Escape and self.isFullScreen():
-            self.toggleFullScreen()  # Exit the full-screen mode when 'Esc' key is pressed.
+            self.toggleFullScreen()
+        elif event.key() == Qt.Key.Key_Space:
+            self.play_pause()
+        elif event.key() == Qt.Key.Key_F:
+            self.toggleFullScreen()
+        elif event.key() == Qt.Key.Key_Q:
+            self.toggleFullScreen()
         super().keyPressEvent(event)
 
+    def handleMediaStatusChanged(self, status):
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.playButton.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+            self.mediaPlayer.setPosition(0)
+        elif status == QMediaPlayer.MediaStatus.LoadedMedia:
+            if self.firstTimeLoad:
+                self.mediaPlayer.pause()
+                self.firstTimeLoad = False
+
     def applyStyles(self):
-        # Set some basic styling using Qt Stylesheet
         style = """
             QMainWindow {
                 background-color: #333;
@@ -186,13 +213,11 @@ class VideoPlayer(QMainWindow):
         self.setStyleSheet(style)
 
     def closeEvent(self, event):
-        """Handle the close event of the main window."""
         msg_box = QMessageBox(self)
         msg_box.setWindowTitle("Confirm Exit")
-        msg_box.setText("Are you sure you want to close the application?")
+        msg_box.setText("Are you sure you want to close?  ")
         yes_button = msg_box.addButton("Yes", QMessageBox.ButtonRole.YesRole)
         no_button = msg_box.addButton("No", QMessageBox.ButtonRole.NoRole)
-
         msg_box.exec()
 
         if msg_box.clickedButton() == yes_button:
