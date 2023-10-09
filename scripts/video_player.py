@@ -172,6 +172,8 @@ class VideoPlayer(QMainWindow):
             self.toggleFullScreen()
         elif event.key() == Qt.Key.Key_Q:
             self.toggleFullScreen()
+        elif event.key() == Qt.Key.Key_M:
+            self.toggleMute()
         super().keyPressEvent(event)
 
     def handleMediaStatusChanged(self, status):
